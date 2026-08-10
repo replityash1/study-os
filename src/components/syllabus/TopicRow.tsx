@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bookmark, ChevronDown, ChevronRight, FileText, Flame } from 'lucide-react';
+import { Bookmark, ChevronDown, ChevronRight, Circle, FileText, Flame } from 'lucide-react';
 import { memo } from 'react';
 import { Badge } from '../ui';
 import { statusForTopic } from '../../lib/progress';
@@ -48,9 +48,11 @@ function countLeaves(
 export const TopicRow = memo(function TopicRow({
   topic,
   depth = 0,
+  number = '',
 }: {
   topic: Topic;
   depth?: number;
+  number?: string;
 }) {
   const { expanded, toggleExpanded, selectedTopic, selectTopic, toggleCompletion, searchQuery } =
     useSyllabusStore();
@@ -86,7 +88,7 @@ export const TopicRow = memo(function TopicRow({
         aria-expanded={topic.children.length ? open : undefined}
         onKeyDown={handleKeyDown}
         onClick={() => selectTopic(topic.id)}
-        className={`group flex cursor-pointer items-center gap-2 rounded-[14px] px-2 py-2.5 text-sm transition hover:bg-violet-50 ${
+        className={`group flex cursor-pointer items-center gap-2 rounded-[12px] px-2 py-2 text-xs transition hover:bg-violet-50 ${
           selectedTopic === topic.id ? 'bg-violet-50 text-primary' : 'text-slate-600'
         }`}
         style={{ marginLeft: depth * 14 }}
@@ -109,16 +111,26 @@ export const TopicRow = memo(function TopicRow({
             <span className="w-[15px]" />
           )}
         </button>
-        <input
-          type="checkbox"
-          aria-label={`Mark ${topic.title_en} complete`}
-          checked={topic.completed || status === 'completed' || status === 'mastered'}
-          onChange={(event) => toggleCompletion(topic.id, event.target.checked)}
-          onClick={(event) => event.stopPropagation()}
-          className="h-4 w-4 rounded border-slate-200 text-primary focus:ring-primary"
-        />
+        <button
+          type="button"
+          aria-label={`Mark ${topic.title_en} ${status === 'completed' ? 'incomplete' : 'complete'}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleCompletion(topic.id, !(status === 'completed' || status === 'mastered'));
+          }}
+          className="text-primary"
+        >
+          {status === 'completed' || status === 'mastered' ? (
+            <Circle size={15} fill="currentColor" className="text-primary" />
+          ) : (
+            <Circle size={15} className="text-slate-300" />
+          )}
+        </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{topic.title_en}</p>
+          <p className="truncate font-medium">
+            {number && `${number} `}
+            {topic.title_en}
+          </p>
           <p className="truncate text-[10px] text-slate-400">{topic.title_hi}</p>
         </div>
         <span className="text-[10px] text-slate-400">
@@ -137,8 +149,13 @@ export const TopicRow = memo(function TopicRow({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            {topic.children.map((child) => (
-              <TopicRow key={child.id} topic={child} depth={depth + 1} />
+            {topic.children.map((child, index) => (
+              <TopicRow
+                key={child.id}
+                topic={child}
+                depth={depth + 1}
+                number={number ? `${number}.${index + 1}` : `${index + 1}`}
+              />
             ))}
           </motion.div>
         )}

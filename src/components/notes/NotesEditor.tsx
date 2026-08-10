@@ -1,6 +1,9 @@
 import {
   Bold,
   Code,
+  FileAudio,
+  FileImage,
+  FileText,
   Heading1,
   Heading2,
   Heading3,
@@ -151,11 +154,13 @@ export function NotesEditor({ topicId }: { topicId: string }) {
   };
 
   return (
-    <Card className="min-h-[360px] border border-slate-100 p-4 md:col-span-2">
+    <Card className="flex min-h-[270px] min-w-0 flex-col border border-slate-100 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="font-bold text-slate-700">Notes Editor</h3>
-          <p className="text-xs text-slate-400">Markdown notes, saved as you think.</p>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg bg-violet-50 p-2 text-primary">
+            <FileText size={16} />
+          </span>
+          <h3 className="font-bold text-slate-700">My Notes</h3>
         </div>
         <div className="flex items-center gap-1">
           <IconButton
@@ -182,21 +187,27 @@ export function NotesEditor({ topicId }: { topicId: string }) {
           >
             <Redo2 size={15} />
           </IconButton>
-          <Button
-            onClick={() => void saveNow()}
-            className="ml-2 flex items-center gap-2 px-3 py-2 text-xs"
-          >
-            <Save size={14} /> Save
-          </Button>
+          <IconButton label="Note options">
+            <span className="text-lg leading-none">…</span>
+          </IconButton>
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-1 border-y border-slate-100 py-2">
+      <div className="mt-3 flex flex-wrap items-center gap-0.5 border-y border-slate-100 py-2">
         {tools.map((tool) => (
-          <IconButton key={tool.label} label={tool.label} onClick={() => insert(tool.value)}>
+          <IconButton
+            key={tool.label}
+            label={tool.label}
+            onClick={() => insert(tool.value)}
+            className="rounded-md px-2 text-slate-500"
+          >
             {tool.icon}
           </IconButton>
         ))}
-        <IconButton label="Code" onClick={() => insert('`code`')}>
+        <IconButton
+          label="Code"
+          onClick={() => insert('`code`')}
+          className="rounded-md px-2 text-slate-500"
+        >
           <Code size={15} />
         </IconButton>
         <button
@@ -229,10 +240,37 @@ export function NotesEditor({ topicId }: { topicId: string }) {
             scheduleSave();
           }}
           placeholder="Write your notes in Markdown…"
-          className="mt-4 min-h-[180px] w-full resize-y rounded-[14px] border border-slate-100 bg-slate-50 p-4 text-sm leading-6 text-slate-700 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100"
+          className="mt-4 min-h-[130px] w-full flex-1 resize-y rounded-[14px] border border-slate-100 bg-slate-50 p-4 text-sm leading-6 text-slate-700 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100"
         />
       )}
-      <p className="mt-2 text-right text-[11px] text-slate-400">
+      <p className="mt-2 text-[10px] italic text-slate-300">Type '/' for commands</p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1">
+          {[
+            ['Audio', <FileAudio size={13} />],
+            ['PDF', <FileText size={13} />],
+            ['Link', <Link size={13} />],
+            ['Image', <FileImage size={13} />],
+          ].map(([label, icon]) => (
+            <button
+              key={label as string}
+              type="button"
+              title="Coming in the next step"
+              className="flex items-center gap-1 rounded-lg border border-slate-100 px-2 py-1.5 text-[10px] text-slate-500"
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+        <Button
+          onClick={() => void saveNow()}
+          className="flex items-center gap-1 px-3 py-2 text-[10px]"
+        >
+          <Save size={13} /> Save Note
+        </Button>
+      </div>
+      <p className="mt-2 text-right text-[10px] text-slate-400">
         {modified ? `Last modified ${new Date(modified).toLocaleString()}` : 'Not saved yet'}
       </p>
     </Card>

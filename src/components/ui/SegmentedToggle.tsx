@@ -16,7 +16,7 @@ export function SegmentedToggle({
           aria-pressed={value === index}
           className={`flex-1 rounded-[12px] px-2 py-2 text-xs font-semibold transition ${
             value === index
-              ? 'bg-white text-primary shadow-sm'
+              ? 'bg-primary text-white shadow-soft-purple'
               : 'text-slate-400 hover:text-slate-600'
           }`}
         >
