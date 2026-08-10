@@ -12,7 +12,10 @@ export function firestoreAssetsAdapter(uid: string): AssetsAdapter {
       return snapshot.docs.map((item) => item.data() as Asset);
     },
     async save(asset) {
-      await setDoc(doc(db, 'users', uid, 'assets', asset.assetId), asset);
+      const firestoreAsset = Object.fromEntries(
+        Object.entries(asset).filter(([, value]) => value !== undefined),
+      ) as Asset;
+      await setDoc(doc(db, 'users', uid, 'assets', asset.assetId), firestoreAsset);
     },
   };
 }
