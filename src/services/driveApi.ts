@@ -8,6 +8,8 @@ const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const folderCache = new Map<string, string>();
+const folderPromises = new Map<string, Promise<string>>();
+const studyOsFolderPromises = new Map<string, Promise<string>>();
 
 interface DriveFile {
   id: string;
@@ -91,37 +93,72 @@ async function createFolder(name: string, parentId?: string) {
   );
 }
 
-export async function ensureStudyOsFolder(uid: string) {
-  const settingsRef = doc(db, 'users', uid, 'settings', 'integrations');
-  const settings = await getDoc(settingsRef);
-  const existingId = settings.exists()
-    ? (settings.data().driveFolderId as string | undefined)
-    : undefined;
-  if (existingId) return existingId;
-  const folder = await createFolder('Study OS');
-  await setDoc(
-    settingsRef,
-    { driveFolderId: folder.id, driveConnectedAt: new Date().toISOString() },
-    { merge: true },
-  );
-  return folder.id;
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-async function ensureRelativeFolderPath(rootId: string, relativePath?: string) {
+async function ensureFolder(name: string, parentId: string) {
+  const cacheKey = `${parentId}/${name}`;
+  const cachedId = folderCache.get(cacheKey);
+  if (cachedId) return cachedId;
+  const pending = folderPromises.get(cacheKey);
+  if (pending) return pending;
+
+  const promise = (async () => {
+    const query = encodeURIComponent(
+      `name = '${escapeDriveQueryValue(name)}' and '${parentId}' in parents and mimeType = '${FOLDER_MIME}' and trashed = false`,
+    );
+    const existing = await driveJson<{ files?: DriveFile[] }>(
+      `/files?q=${query}&fields=files(id,name,mimeType,parents)&pageSize=1`,
+    );
+    const folder = existing.files?.[0] ?? (await createFolder(name, parentId));
+    folderCache.set(cacheKey, folder.id);
+    return folder.id;
+  })();
+  folderPromises.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    folderPromises.delete(cacheKey);
+  }
+}
+
+export async function ensureStudyOsFolder(uid: string) {
+  const pending = studyOsFolderPromises.get(uid);
+  if (pending) return pending;
+
+  const promise = (async () => {
+    const settingsRef = doc(db, 'users', uid, 'settings', 'integrations');
+    const settings = await getDoc(settingsRef);
+    const existingId = settings.exists()
+      ? (settings.data().driveFolderId as string | undefined)
+      : undefined;
+    if (existingId) return existingId;
+    const folderId = await ensureFolder('Study OS', 'root');
+    await setDoc(
+      settingsRef,
+      { driveFolderId: folderId, driveConnectedAt: new Date().toISOString() },
+      { merge: true },
+    );
+    return folderId;
+  })();
+  studyOsFolderPromises.set(uid, promise);
+  try {
+    return await promise;
+  } finally {
+    studyOsFolderPromises.delete(uid);
+  }
+}
+
+export async function ensureRelativeFolderPath(
+  rootId: string,
+  relativePath?: string,
+  ensureFolderPath: (name: string, parentId: string) => Promise<string> = ensureFolder,
+) {
   const directories = (relativePath ?? '').split('/').filter(Boolean).slice(0, -1);
   let parentId = rootId;
-  const pathParts: string[] = [];
   for (const directory of directories) {
-    pathParts.push(directory);
-    const cacheKey = `${rootId}/${pathParts.join('/')}`;
-    const cachedId = folderCache.get(cacheKey);
-    if (cachedId) {
-      parentId = cachedId;
-      continue;
-    }
-    const folder = await createFolder(directory, parentId);
-    folderCache.set(cacheKey, folder.id);
-    parentId = folder.id;
+    parentId = await ensureFolderPath(directory, parentId);
   }
   return parentId;
 }
