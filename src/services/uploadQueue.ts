@@ -87,6 +87,21 @@ export function createUploadQueue(
     const controller = new AbortController();
     controllers.set(task.id, controller);
 
+    if (task.asset) {
+      try {
+        await options.onSuccess?.(task, task.asset);
+        task.status = 'uploaded';
+        notify();
+      } catch (saveError) {
+        task.status = 'failed';
+        task.error = saveError instanceof Error ? saveError.message : 'Asset save failed';
+        notify();
+      } finally {
+        controllers.delete(task.id);
+      }
+      return;
+    }
+
     try {
       for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
         if (cancelledTaskIds.has(task.id)) {
@@ -107,14 +122,17 @@ export function createUploadQueue(
           }
           task.asset = uploadedAsset;
           task.progress = 1;
-          task.status = 'uploaded';
           notify();
           try {
             await options.onSuccess?.(task, task.asset);
           } catch (saveError) {
+            task.status = 'failed';
             task.error = saveError instanceof Error ? saveError.message : 'Asset save failed';
             notify();
+            return;
           }
+          task.status = 'uploaded';
+          notify();
           return;
         } catch (error) {
           if (attempt >= maxRetries || !isTransient(error)) throw error;

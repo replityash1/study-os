@@ -142,4 +142,31 @@ describe('upload queue', () => {
 
     expect(completed).toEqual(['progressive']);
   });
+
+  it('fails when persistence fails and retries persistence without re-uploading', async () => {
+    let uploads = 0;
+    let saves = 0;
+    const uploadOne: UploadOne = async (item, topicId) => {
+      uploads += 1;
+      return assetFor(item, topicId);
+    };
+    const queue = createUploadQueue([{ file: file('persist'), topicId: 'topic' }], uploadOne, {
+      onSuccess: async () => {
+        saves += 1;
+        if (saves === 1) throw new Error('permission denied');
+      },
+    });
+
+    await queue.start();
+
+    expect(queue.tasks[0].status).toBe('failed');
+    expect(queue.tasks[0].error).toBe('permission denied');
+    expect(queue.tasks[0].asset?.title).toBe('persist');
+
+    await queue.retry(queue.tasks[0].id);
+
+    expect(uploads).toBe(1);
+    expect(saves).toBe(2);
+    expect(queue.tasks[0].status).toBe('uploaded');
+  });
 });
