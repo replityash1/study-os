@@ -5,6 +5,8 @@ import { SyllabusExplorer } from '../components/syllabus/SyllabusExplorer';
 import { WorkspacePanels } from '../components/workspace/WorkspacePanels';
 import { useSyllabusStore } from '../store/syllabusStore';
 import { useUIStore } from '../store/uiStore';
+import { useAuth } from '../auth/useAuth';
+import { useCloudStore } from '../store/cloudStore';
 
 type TopicLabel = {
   id: string;
@@ -22,6 +24,8 @@ function findTitle(topics: TopicLabel[], id: string): string {
 }
 
 export function WorkspacePage() {
+  const { user } = useAuth();
+  const cloudOffline = useCloudStore((state) => state.offline);
   const selectedTopic = useSyllabusStore((state) => state.selectedTopic);
   const syllabus = useSyllabusStore((state) => state.exams[state.selectedExam]);
   const drawerOpen = useUIStore((state) => state.drawerOpen);
@@ -45,7 +49,11 @@ export function WorkspacePage() {
             <Menu size={20} />
           </IconButton>
           <div>
-            <p className="text-sm font-semibold text-primary">Good morning, Ananya</p>
+            <p className="text-sm font-semibold text-primary">
+              {user
+                ? `Good morning, ${user.displayName?.split(' ')[0] || 'there'}`
+                : 'Good morning'}
+            </p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-800">
               Your study workspace
             </h1>
@@ -53,7 +61,7 @@ export function WorkspacePage() {
         </div>
         <div className="hidden items-center gap-3 rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-soft sm:flex">
           <Sparkles size={16} className="text-primary" />
-          Focus mode ready
+          {user && !cloudOffline ? 'Sync enabled' : 'offline — saving locally'}
         </div>
       </header>
 
@@ -92,7 +100,7 @@ export function WorkspacePage() {
                       <ArrowUpRight size={18} />
                     </button>
                   </div>
-                  <WorkspacePanels />
+                  <WorkspacePanels topicId={selectedTopic} />
                 </>
               ) : (
                 <EmptyState

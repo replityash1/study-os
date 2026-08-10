@@ -5,6 +5,7 @@ import { Badge } from '../ui';
 import { statusForTopic } from '../../lib/progress';
 import { useProgressStore } from '../../store/progressStore';
 import { useSyllabusStore } from '../../store/syllabusStore';
+import { useNotesStore } from '../../store/notesStore';
 import type { Topic } from '../../types';
 import { topicMatches } from './topicSearch';
 
@@ -54,6 +55,7 @@ export const TopicRow = memo(function TopicRow({
   const { expanded, toggleExpanded, selectedTopic, selectTopic, toggleCompletion, searchQuery } =
     useSyllabusStore();
   const statusMap = useProgressStore((state) => state.statusMap);
+  const note = useNotesStore((state) => state.notes[topic.id]);
 
   if (!topicMatches(topic, searchQuery)) return null;
 
@@ -123,7 +125,7 @@ export const TopicRow = memo(function TopicRow({
           {count.completed} / {count.total}
         </span>
         <Badge tone={statusTone(status)}>{statusLabel(status)}</Badge>
-        {topic.notes && <FileText size={13} className="text-slate-300" />}
+        {(note?.content || topic.notes) && <FileText size={13} className="text-slate-300" />}
         {topic.bookmarked && <Bookmark size={13} className="text-amber-400" />}
         {topic.revision && <Flame size={13} className="text-orange-400" />}
       </div>

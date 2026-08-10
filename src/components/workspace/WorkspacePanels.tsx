@@ -1,5 +1,6 @@
-import { BookOpen, Layers3, PenLine } from 'lucide-react';
+import { BookOpen, Layers3 } from 'lucide-react';
 import { Card } from '../ui';
+import { NotesEditor } from '../notes/NotesEditor';
 
 function PlaceholderPanel({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
@@ -11,11 +12,11 @@ function PlaceholderPanel({ icon, title }: { icon: React.ReactNode; title: strin
   );
 }
 
-export function WorkspacePanels() {
+export function WorkspacePanels({ topicId }: { topicId: string }) {
   return (
     <div className="mt-6 grid gap-5 md:grid-cols-3">
       <PlaceholderPanel icon={<BookOpen />} title="Smart Viewer" />
-      <PlaceholderPanel icon={<PenLine />} title="Notes Editor" />
+      <NotesEditor topicId={topicId} />
       <PlaceholderPanel icon={<Layers3 />} title="Asset Timeline" />
     </div>
   );
