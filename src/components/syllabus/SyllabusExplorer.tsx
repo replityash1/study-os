@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Ellipsis, Filter, Search, X } from 'lucide-react';
 import { Badge, Button, Card, IconButton, Input, ProgressBar, SegmentedToggle } from '../ui';
+import { SyncStatus } from '../SyncStatus';
 import { calculateProgress } from '../../lib/progress';
 import { useSyllabusStore } from '../../store/syllabusStore';
 import { useProgressStore } from '../../store/progressStore';
@@ -38,6 +39,7 @@ export function SyllabusExplorer({ onClose }: { onClose?: () => void }) {
           <p className="mt-1 text-xs text-slate-400">Your customized study path</p>
         </div>
         <div className="flex items-center gap-1">
+          <SyncStatus />
           <IconButton label="Syllabus options" onClick={() => setShowOptions((value) => !value)}>
             <Ellipsis size={18} />
           </IconButton>
