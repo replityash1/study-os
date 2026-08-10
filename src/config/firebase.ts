@@ -5,7 +5,8 @@ const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDmHSSoVdBjRVyVyY8tRBrCRUH948ZCJUg',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'syllabus-30367.firebaseapp.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'syllabus-30367',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'syllabus-30367.firebasestorage.app',
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'syllabus-30367.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '806183151449',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:806183151449:web:40efeae911ab170dd20e48',
 };
