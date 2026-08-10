@@ -1,35 +1,19 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { motion } from 'framer-motion';
+import { ArrowUpRight, BookOpen, Layers3, PenLine, Sparkles } from 'lucide-react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { Sidebar } from './components/Sidebar';
+import { EmptyState, Card } from './components/ui';
+import { SyllabusExplorer } from './components/SyllabusExplorer';
+import { useSyllabusStore } from './store/syllabusStore';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+function Workspace() {
+  const selectedTopic = useSyllabusStore((s) => s.selectedTopic);
+  const syllabus = useSyllabusStore((s) => s.exams[s.selectedExam]);
+  const title = selectedTopic ? findTitle(syllabus.subjects.flatMap((s) => s.topics), selectedTopic) : '';
+  return <div className="min-h-screen bg-canvas pl-[114px] pr-8 max-md:pb-24 max-md:pl-4 max-md:pr-4"><header className="flex items-center justify-between py-8"><div><p className="text-sm font-semibold text-primary">Good morning, Ananya</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-800">Your study workspace</h1></div><div className="hidden items-center gap-3 rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-soft sm:flex"><Sparkles size={16} className="text-primary" /> Focus mode ready</div></header><main className="grid min-h-[calc(100vh-150px)] grid-cols-[minmax(300px,25%)_1fr] gap-6 max-lg:grid-cols-1"><section className="min-h-0 max-lg:max-h-[680px]"><SyllabusExplorer /></section><section className="min-h-0"><motion.div key={selectedTopic || 'empty'} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="h-full"><Card className="h-full min-h-[580px] p-6">{selectedTopic ? <><div className="flex items-start justify-between border-b border-slate-100 pb-5"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-primary">Selected topic</p><h2 className="mt-2 text-2xl font-bold text-slate-800">{title}</h2><p className="mt-1 text-sm text-slate-400">Your focused workspace will grow here.</p></div><button className="rounded-[14px] bg-violet-50 p-3 text-primary"><ArrowUpRight size={18} /></button></div><div className="mt-6 grid gap-5 md:grid-cols-3"><Placeholder icon={<BookOpen />} title="Smart Viewer" /><Placeholder icon={<PenLine />} title="Notes Editor" /><Placeholder icon={<Layers3 />} title="Asset Timeline" /></div></> : <EmptyState icon={<Sparkles size={25} />} title="Ready to conquer this topic?" description="Select a syllabus item to start your workspace." />}</Card></motion.div></section></main></div>;
 }
-
-export default App
+function Placeholder({ icon, title }: { icon: React.ReactNode; title: string }) { return <Card className="min-h-[220px] border border-slate-100 p-5"><div className="mb-10 inline-flex rounded-[14px] bg-violet-50 p-3 text-primary">{icon}</div><h3 className="font-bold text-slate-700">{title}</h3><p className="mt-1 text-xs text-slate-400">Coming in the next step</p></Card>; }
+type TopicLabel = { id: string; title_en: string; children: TopicLabel[] };
+function findTitle(topics: TopicLabel[], id: string): string { for (const topic of topics) { if (topic.id === id) return topic.title_en; const nested = findTitle(topic.children, id); if (nested) return nested; } return ''; }
+function ComingSoon({ label }: { label: string }) { return <div className="flex min-h-screen items-center justify-center bg-canvas pl-[114px] max-md:pb-24 max-md:pl-4"><Card className="mx-4 w-full max-w-xl p-10"><EmptyState icon={<Sparkles />} title={`${label} is coming soon`} description="This foundation is ready. We’ll add this workspace in a later step." /></Card></div>; }
+export default function App() { return <BrowserRouter><Sidebar /><Routes><Route path="/workspace" element={<Workspace />} /><Route path="/analytics" element={<ComingSoon label="Analytics" />} /><Route path="/practice" element={<ComingSoon label="Practice" />} /><Route path="/bookmarks" element={<ComingSoon label="Bookmarks" />} /><Route path="/settings" element={<ComingSoon label="Settings" />} /><Route path="*" element={<Navigate to="/workspace" replace />} /></Routes></BrowserRouter>; }
