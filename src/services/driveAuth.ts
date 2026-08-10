@@ -1,5 +1,9 @@
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
+
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOKEN_SKEW_MS = 60_000;
+const DRIVE_CONNECTION_FLAG = 'study-os-drive-connected';
 
 interface TokenResponse {
   access_token?: string;
@@ -111,8 +115,57 @@ async function requestToken(prompt: string) {
   }
 }
 
+async function rememberDriveConnection() {
+  try {
+    localStorage.setItem(DRIVE_CONNECTION_FLAG, 'true');
+  } catch {
+    // Local storage may be unavailable in privacy-restricted browser contexts.
+  }
+  const user = auth.currentUser;
+  if (user) {
+    try {
+      await setDoc(
+        doc(db, 'users', user.uid, 'settings', 'integrations'),
+        { driveConnected: true },
+        { merge: true },
+      );
+    } catch {
+      // A consented token remains usable even if settings persistence is offline.
+    }
+  }
+}
+
+export async function hasDriveConnectionHint() {
+  try {
+    if (localStorage.getItem(DRIVE_CONNECTION_FLAG) === 'true') return true;
+  } catch {
+    // Continue with the signed-in Firestore hint.
+  }
+  const user = auth.currentUser;
+  if (!user) return false;
+  try {
+    const settings = await getDoc(doc(db, 'users', user.uid, 'settings', 'integrations'));
+    return Boolean(settings.data()?.driveConnected || settings.data()?.driveFolderId);
+  } catch {
+    return false;
+  }
+}
+
+export async function reconnectGoogleDriveSilently() {
+  if (!hasDriveClientId() || !(await hasDriveConnectionHint())) return false;
+  try {
+    await requestToken('');
+    return true;
+  } catch {
+    clearDriveAccessToken();
+    return false;
+  }
+}
+
 export async function connectGoogleDrive() {
-  return requestToken('consent');
+  const token = await requestToken('consent');
+  await rememberDriveConnection();
+  return token;
 }
 
 export async function getDriveAccessToken() {

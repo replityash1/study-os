@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { FilePlus2, FolderOpen, UploadCloud, X } from 'lucide-react';
 import { useAssetsStore } from '../../store/assetsStore';
 import { inferAssetType } from '../../services/assetType';
-import { connectGoogleDrive } from '../../services/driveAuth';
+import { connectGoogleDrive, reconnectGoogleDriveSilently } from '../../services/driveAuth';
+import { useAuth } from '../../auth/useAuth';
 
 interface FileEntry {
   isFile: boolean;
@@ -51,7 +52,10 @@ export function AssetUploader({ topicId }: { topicId?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [driveChecking, setDriveChecking] = useState(true);
   const [driveMessage, setDriveMessage] = useState<string | null>(null);
+  const { user } = useAuth();
   const startUpload = useAssetsStore((state) => state.startUpload);
   const uploadTasks = useAssetsStore((state) => state.uploadTasks);
   const uploadProgress = useAssetsStore((state) => state.uploadProgress);
@@ -64,6 +68,19 @@ export function AssetUploader({ topicId }: { topicId?: string }) {
     }
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setDriveChecking(true);
+    void reconnectGoogleDriveSilently().then((connected) => {
+      if (cancelled) return;
+      setDriveConnected(connected);
+      setDriveChecking(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [topicId, user?.uid]);
+
   async function addFiles(files: File[]) {
     if (!topicId) return;
     const supported = files.filter((file) => inferAssetType(file));
@@ -75,6 +92,7 @@ export function AssetUploader({ topicId }: { topicId?: string }) {
     setDriveMessage(null);
     try {
       await connectGoogleDrive();
+      setDriveConnected(true);
       setDriveMessage('Google Drive connected. Choose a folder to upload.');
     } catch (reason: unknown) {
       setDriveMessage(reason instanceof Error ? reason.message : 'Unable to connect Google Drive.');
@@ -142,11 +160,15 @@ export function AssetUploader({ topicId }: { topicId?: string }) {
         {topicId && (
           <button
             type="button"
-            disabled={connecting || active}
+            disabled={connecting || driveChecking || driveConnected || active}
             onClick={() => void connectDrive()}
             className="ml-2 mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 disabled:opacity-40"
           >
-            {connecting ? 'Connecting…' : 'Connect Google Drive'}
+            {connecting || driveChecking
+              ? 'Connecting…'
+              : driveConnected
+                ? 'Google Drive connected'
+                : 'Connect Google Drive'}
           </button>
         )}
       </div>
