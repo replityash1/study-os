@@ -12,15 +12,12 @@ export function WorkspacePage() {
   const { user } = useAuth();
   const cloudOffline = useCloudStore((state) => state.offline);
   const selectedTopic = useSyllabusStore((state) => state.selectedTopic);
-  const syllabus = useSyllabusStore((state) => state.exams[state.selectedExam]);
   const drawerOpen = useUIStore((state) => state.drawerOpen);
   const setDrawerOpen = useUIStore((state) => state.setDrawerOpen);
-  const firstTopic = syllabus.subjects[0]?.topics[0]?.id ?? '';
-  const activeTopic = selectedTopic ?? firstTopic;
 
   return (
     <div className="min-h-screen bg-canvas pl-[114px] pr-8 pt-5 max-md:pb-24 max-md:pl-4 max-md:pr-4">
-      <div className="fixed right-8 top-5 z-10 hidden rounded-full bg-white px-3 py-2 text-[10px] font-semibold text-slate-500 shadow-soft sm:block">
+      <div className="fixed bottom-5 left-[114px] z-10 hidden rounded-full bg-white px-3 py-2 text-[10px] font-semibold text-slate-500 shadow-soft sm:block">
         {user ? (cloudOffline ? 'Offline — saving locally' : 'Sync enabled') : 'Local mode'}
       </div>
       <main className="grid min-h-[calc(100vh-40px)] grid-cols-[minmax(300px,340px)_1fr] gap-5 max-lg:grid-cols-1">
@@ -35,7 +32,7 @@ export function WorkspacePage() {
               </IconButton>
               <SyncStatus />
             </div>
-            <WorkspacePanels topicId={activeTopic} />
+            <WorkspacePanels topicId={selectedTopic ?? undefined} />
           </div>
         </section>
       </main>

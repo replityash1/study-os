@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { FileStack, Filter } from 'lucide-react';
 import { Card, IconButton } from '../ui';
 
 export function AssetsPanel({ icon }: { icon?: React.ReactNode }) {
+  const [filter, setFilter] = useState('All');
+  const filters = ['All', 'Videos', 'PDFs', 'Audio'];
+
   return (
     <Card className="flex min-h-[270px] min-w-0 flex-col p-4">
       <div className="flex items-center justify-between">
@@ -16,10 +20,19 @@ export function AssetsPanel({ icon }: { icon?: React.ReactNode }) {
         </IconButton>
       </div>
       <div className="mt-4 flex gap-1 rounded-xl bg-slate-50 p-1 text-[10px] font-semibold text-slate-400">
-        <span className="rounded-lg bg-primary px-3 py-1.5 text-white">All</span>
-        <span className="px-2 py-1.5">Videos</span>
-        <span className="px-2 py-1.5">PDFs</span>
-        <span className="px-2 py-1.5">Audio</span>
+        {filters.map((item) => (
+          <button
+            key={item}
+            type="button"
+            aria-pressed={filter === item}
+            onClick={() => setFilter(item)}
+            className={`rounded-lg px-3 py-1.5 transition ${
+              filter === item ? 'bg-primary text-white' : 'hover:bg-white hover:text-slate-600'
+            }`}
+          >
+            {item}
+          </button>
+        ))}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <FileStack size={26} className="text-slate-200" />
@@ -28,7 +41,6 @@ export function AssetsPanel({ icon }: { icon?: React.ReactNode }) {
           Your saved videos, PDFs, and audio will appear here.
         </p>
       </div>
-      <button className="self-end text-xs font-bold text-primary">View All&nbsp; →</button>
     </Card>
   );
 }
