@@ -58,7 +58,10 @@ export const useSyllabusStore = create<SyllabusState>((set) => ({
   selectedTopic: null,
   expanded: {},
   searchQuery: '',
-  setExam: (selectedExam) => set({ selectedExam, selectedTopic: null }),
+  setExam: (selectedExam) => {
+    set({ selectedExam, selectedTopic: null });
+    useProgressStore.getState().setActiveExam(syllabi[selectedExam].exam);
+  },
   selectTopic: (selectedTopic) => set({ selectedTopic }),
   toggleExpanded: (id) =>
     set((state) => ({
@@ -87,9 +90,9 @@ export const useSyllabusStore = create<SyllabusState>((set) => ({
           return [topicId, status];
         }),
       ) as Record<string, TopicStatus>;
-      useProgressStore.setState((progressState) => ({
-        statusMap: { ...progressState.statusMap, ...statusUpdates },
-      }));
+      useProgressStore.getState().setStatuses(statusUpdates);
       return { exams };
     }),
 }));
+
+useProgressStore.getState().setActiveExam(syllabi[0].exam);

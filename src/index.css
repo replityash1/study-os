@@ -2,6 +2,75 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin: 1rem 0 0.5rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.markdown-preview h1 {
+  font-size: 1.5rem;
+}
+
+.markdown-preview h2 {
+  font-size: 1.25rem;
+}
+
+.markdown-preview h3 {
+  font-size: 1.1rem;
+}
+
+.markdown-preview p {
+  margin: 0.5rem 0;
+}
+
+.markdown-preview strong {
+  font-weight: 700;
+}
+
+.markdown-preview em {
+  font-style: italic;
+}
+
+.markdown-preview u {
+  text-decoration: underline;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.markdown-preview ul {
+  list-style: disc;
+}
+
+.markdown-preview ol {
+  list-style: decimal;
+}
+
+.markdown-preview blockquote {
+  margin: 0.75rem 0;
+  border-left: 3px solid #a78bfa;
+  padding-left: 0.75rem;
+  color: #64748b;
+}
+
+.markdown-preview a {
+  color: #7c3aed;
+  text-decoration: underline;
+}
+
+.markdown-preview code {
+  border-radius: 0.35rem;
+  background: #f1f5f9;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.9em;
+}
 @layer base {
   * {
     box-sizing: border-box;
