@@ -99,7 +99,7 @@ export function SyllabusExplorer({ onClose }: { onClose?: () => void }) {
       <div
         role="tree"
         aria-label="Syllabus topics"
-        className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"
+        className="syllabus-scrollbar mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1"
       >
         {syllabus.subjects.map((subject, index) => (
           <SubjectRow key={subject.id} subject={subject} index={index} />

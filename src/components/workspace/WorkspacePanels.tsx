@@ -20,7 +20,7 @@ export function WorkspacePanels({ topicId }: { topicId?: string }) {
   }, [syllabus, topicId]);
 
   return (
-    <div className="grid min-h-0 flex-1 grid-rows-[minmax(280px,1fr)_minmax(270px,0.9fr)] gap-4">
+    <div className="grid h-full min-h-0 flex-1 grid-rows-[minmax(280px,1fr)_minmax(270px,0.9fr)] gap-4 max-lg:h-auto">
       <MediaViewer title={title || undefined} />
       <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)] gap-4 max-xl:grid-cols-1">
         <NotesEditor topicId={topicId} />

@@ -13,13 +13,13 @@ export function WorkspacePage() {
   const setDrawerOpen = useUIStore((state) => state.setDrawerOpen);
 
   return (
-    <div className="min-h-screen bg-canvas pl-[114px] pr-8 pt-5 max-md:pb-24 max-md:pl-4 max-md:pr-4">
-      <main className="grid min-h-[calc(100vh-40px)] grid-cols-[minmax(300px,340px)_1fr] gap-5 max-lg:grid-cols-1">
-        <section className="min-h-0 max-lg:hidden">
+    <div className="h-screen overflow-hidden bg-canvas pl-[114px] pr-8 pt-5 max-lg:h-auto max-lg:min-h-screen max-lg:overflow-visible max-md:pb-24 max-md:pl-4 max-md:pr-4">
+      <main className="grid h-[calc(100vh-40px)] min-h-0 grid-cols-[minmax(300px,340px)_1fr] gap-5 max-lg:h-auto max-lg:grid-cols-1">
+        <section className="h-full min-h-0 max-lg:hidden">
           <SyllabusExplorer />
         </section>
-        <section className="min-h-0">
-          <div className="flex min-h-[calc(100vh-40px)] flex-col gap-4">
+        <section className="h-full min-h-0 max-lg:h-auto">
+          <div className="flex h-full min-h-0 flex-col gap-4 max-lg:h-auto">
             <div className="flex items-center justify-between lg:hidden">
               <IconButton label="Open syllabus explorer" onClick={() => setDrawerOpen(true)}>
                 <Menu size={20} />
