@@ -9,6 +9,9 @@ import { useCloudStore } from '../store/cloudStore';
 import { useNotesStore } from '../store/notesStore';
 import { firestoreNotesAdapter } from '../services/firestoreNotesAdapter';
 import { localNotesAdapter } from '../services/notesAdapter';
+import { localAssetsAdapter } from '../services/assetsAdapter';
+import { firestoreAssetsAdapter } from '../services/firestoreAssetsAdapter';
+import { useAssetsStore } from '../store/assetsStore';
 
 let reportedCloudError = false;
 
@@ -19,6 +22,8 @@ export function useCloudSync() {
   const setError = useCloudStore((state) => state.setError);
   const clearNotes = useNotesStore((state) => state.clear);
   const hydrate = useProgressStore((state) => state.hydrate);
+  const setAssetsAdapter = useAssetsStore((state) => state.setAdapter);
+  const clearAssets = useAssetsStore((state) => state.clear);
 
   useEffect(() => {
     void hydrate(syllabi.map((syllabus) => syllabus.exam));
@@ -26,7 +31,47 @@ export function useCloudSync() {
 
   useEffect(() => {
     clearNotes();
-  }, [clearNotes, user?.uid]);
+    clearAssets();
+    setAssetsAdapter(user ? firestoreAssetsAdapter(user.uid) : localAssetsAdapter);
+  }, [clearAssets, clearNotes, setAssetsAdapter, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const remote = firestoreAssetsAdapter(user.uid);
+    let cancelled = false;
+
+    async function migrateAssets() {
+      const localKeys = Object.keys(localStorage).filter((key) =>
+        key.startsWith('study-os-assets-'),
+      );
+      for (const key of localKeys) {
+        const topicId = key.replace('study-os-assets-', '');
+        try {
+          const [localAssets, remoteAssets] = await Promise.all([
+            localAssetsAdapter.list(topicId),
+            remote.list(topicId),
+          ]);
+          if (cancelled) return;
+          const remoteIds = new Set(remoteAssets.map((asset) => asset.assetId));
+          for (const asset of localAssets) {
+            if (!remoteIds.has(asset.assetId)) await remote.save(asset);
+          }
+        } catch (error) {
+          if (!reportedCloudError) {
+            console.warn('Study OS asset sync unavailable; continuing locally.', error);
+            reportedCloudError = true;
+          }
+          setOffline(true);
+          setError('Asset sync unavailable — saving locally');
+        }
+      }
+    }
+
+    void migrateAssets();
+    return () => {
+      cancelled = true;
+    };
+  }, [setError, setOffline, user]);
 
   useEffect(() => {
     if (!user) return;
