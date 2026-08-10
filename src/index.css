@@ -71,6 +71,24 @@
   padding: 0.1rem 0.3rem;
   font-size: 0.9em;
 }
+
+.syllabus-scrollbar {
+  scrollbar-color: #c4b5fd transparent;
+  scrollbar-width: thin;
+}
+
+.syllabus-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.syllabus-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.syllabus-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c4b5fd;
+}
 @layer base {
   * {
     box-sizing: border-box;

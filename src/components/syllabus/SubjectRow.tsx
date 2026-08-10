@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, ChevronRight, Circle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Globe2, Landmark, Sigma, Sparkles, Trophy } from 'lucide-react';
 import { memo } from 'react';
 import { Card } from '../ui';
 import { calculateProgress } from '../../lib/progress';
@@ -10,11 +10,11 @@ import { TopicRow } from './TopicRow';
 import { topicMatches } from './topicSearch';
 
 const iconTints = [
-  'bg-violet-50 text-primary',
-  'bg-blue-50 text-blue-500',
-  'bg-emerald-50 text-emerald-500',
-  'bg-amber-50 text-amber-500',
-  'bg-rose-50 text-rose-500',
+  { className: 'bg-violet-50 text-primary', icon: Landmark },
+  { className: 'bg-blue-50 text-blue-500', icon: Globe2 },
+  { className: 'bg-emerald-50 text-emerald-500', icon: Trophy },
+  { className: 'bg-amber-50 text-amber-500', icon: Sigma },
+  { className: 'bg-rose-50 text-rose-500', icon: Sparkles },
 ];
 
 export const SubjectRow = memo(function SubjectRow({
@@ -32,20 +32,27 @@ export const SubjectRow = memo(function SubjectRow({
     Boolean(searchQuery && subject.topics.some((topic) => topicMatches(topic, searchQuery)));
 
   return (
-    <Card className="overflow-hidden rounded-[18px] shadow-none ring-1 ring-slate-100">
+    <Card
+      className={`overflow-hidden rounded-[17px] shadow-none ring-1 ring-slate-100 ${open ? 'border-l-2 border-primary' : ''}`}
+    >
       <button
         onClick={() => toggleExpanded(subject.id)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"
+        className="flex w-full items-center gap-3 px-3 py-3 text-left text-xs font-bold text-slate-700 hover:bg-slate-50"
       >
         <span
-          className={`flex h-8 w-8 items-center justify-center rounded-full ${
-            iconTints[index % iconTints.length]
+          className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+            iconTints[index % iconTints.length].className
           }`}
         >
-          <Circle size={13} fill="currentColor" />
+          {(() => {
+            const Icon = iconTints[index % iconTints.length].icon;
+            return <Icon size={14} />;
+          })()}
         </span>
-        <span className="min-w-0 flex-1 truncate">{subject.title_en}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {index + 1}. {subject.title_en}
+        </span>
         <span className="whitespace-nowrap text-[10px] text-slate-400">
           {progress.completedLeaves} / {progress.totalLeaves}
         </span>
