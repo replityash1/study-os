@@ -12,12 +12,21 @@ export class DriveNotConnectedError extends Error {
   }
 }
 
+export class DriveAppAuthRequiredError extends Error {
+  readonly transient = false;
+
+  constructor() {
+    super('Sign in to Study OS before uploading assets.');
+    this.name = 'DriveAppAuthRequiredError';
+  }
+}
+
 export async function listDriveAssets(topicId: string): Promise<Asset[]> {
   if (!auth.currentUser) throw new DriveNotConnectedError();
   return firestoreAssetsAdapter(auth.currentUser.uid).list(topicId);
 }
 export async function uploadDriveAsset(topicId: string, file: File): Promise<Asset> {
-  if (!auth.currentUser) throw new DriveNotConnectedError();
+  if (!auth.currentUser) throw new DriveAppAuthRequiredError();
   return uploadDriveFile(topicId, file, new AbortController().signal, () => undefined);
 }
 
@@ -27,6 +36,6 @@ export async function uploadDriveAssetWithProgress(
   signal: AbortSignal,
   onProgress: (bytesUploaded: number) => void,
 ) {
-  if (!auth.currentUser) throw new DriveNotConnectedError();
+  if (!auth.currentUser) throw new DriveAppAuthRequiredError();
   return uploadDriveFile(topicId, file, signal, onProgress);
 }
