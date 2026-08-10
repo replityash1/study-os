@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Asset, AssetType, UploadProgress, UploadTask } from '../types';
-import { uploadDriveAsset } from '../services/drive';
+import { uploadDriveAssetWithProgress } from '../services/drive';
 import { localAssetsAdapter, type AssetsAdapter } from '../services/assetsAdapter';
 import { createUploadQueue, type UploadOne } from '../services/uploadQueue';
 
@@ -13,6 +13,8 @@ interface AssetsState {
   adapter: AssetsAdapter;
   activeQueue: ReturnType<typeof createUploadQueue> | null;
   setAdapter: (adapter: AssetsAdapter) => void;
+  clear: () => void;
+  appendAsset: (asset: Asset) => void;
   setFilter: (filter: AssetsState['filter']) => void;
   selectAsset: (asset: Asset | null) => void;
   hydrate: (topicId: string) => Promise<void>;
@@ -37,6 +39,11 @@ export const useAssetsStore = create<AssetsState>((set, get) => ({
   adapter: localAssetsAdapter,
   activeQueue: null,
   setAdapter: (adapter) => set({ adapter }),
+  clear: () => set({ assets: [], selectedAsset: null }),
+  appendAsset: (asset) =>
+    set((state) => ({
+      assets: [...state.assets.filter((item) => item.assetId !== asset.assetId), asset],
+    })),
   setFilter: (filter) => set({ filter }),
   selectAsset: (selectedAsset) => set({ selectedAsset }),
   hydrate: async (topicId) => {
@@ -46,7 +53,8 @@ export const useAssetsStore = create<AssetsState>((set, get) => ({
   startUpload: async (
     files,
     topicId,
-    uploadOne = async (file, id) => uploadDriveAsset(id, file),
+    uploadOne = async (file, id, signal, onProgress) =>
+      uploadDriveAssetWithProgress(id, file, signal, onProgress),
   ) => {
     const queue = createUploadQueue(
       files.map((file) => ({ file, topicId })),
@@ -54,25 +62,16 @@ export const useAssetsStore = create<AssetsState>((set, get) => ({
       {
         concurrency: 3,
         onUpdate: (uploadTasks, uploadProgress) => set({ uploadTasks, uploadProgress }),
+        onSuccess: async (_task, asset) => {
+          await get().adapter.save(asset);
+          set((state) => ({
+            assets: [...state.assets.filter((item) => item.assetId !== asset.assetId), asset],
+          }));
+        },
       },
     );
     set({ activeQueue: queue });
     await queue.start();
-    const uploaded = queue.tasks
-      .filter((task) => task.status === 'uploaded' && task.asset)
-      .map((task) => task.asset as Asset);
-    for (const asset of uploaded) await get().adapter.save(asset);
-    if (uploaded.length) {
-      set((state) => ({
-        assets: [
-          ...state.assets.filter(
-            (item) => !uploaded.some((asset) => asset.assetId === item.assetId),
-          ),
-          ...uploaded,
-        ],
-      }));
-    }
-    set({ activeQueue: null });
   },
   retryUpload: async (taskId) => {
     await get().activeQueue?.retry(taskId);

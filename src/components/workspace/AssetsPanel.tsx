@@ -1,8 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { FileAudio, FileImage, FileStack, FileText, Filter, Film } from 'lucide-react';
 import { useAuth } from '../../auth/useAuth';
-import { localAssetsAdapter } from '../../services/assetsAdapter';
-import { firestoreAssetsAdapter } from '../../services/firestoreAssetsAdapter';
 import type { Asset, AssetType } from '../../types';
 import { useAssetsStore } from '../../store/assetsStore';
 import { Card, IconButton } from '../ui';
@@ -45,14 +43,11 @@ export function AssetsPanel({ icon, topicId }: { icon?: React.ReactNode; topicId
   const setFilter = useAssetsStore((state) => state.setFilter);
   const assets = useAssetsStore((state) => state.assets);
   const selectAsset = useAssetsStore((state) => state.selectAsset);
-  const setAdapter = useAssetsStore((state) => state.setAdapter);
   const hydrate = useAssetsStore((state) => state.hydrate);
 
   useEffect(() => {
-    const adapter = user ? firestoreAssetsAdapter(user.uid) : localAssetsAdapter;
-    setAdapter(adapter);
     if (topicId) void hydrate(topicId);
-  }, [hydrate, setAdapter, topicId, user]);
+  }, [hydrate, topicId, user?.uid]);
 
   const visibleAssets = useMemo(
     () => assets.filter((asset) => filter === 'All' || asset.type === filter),

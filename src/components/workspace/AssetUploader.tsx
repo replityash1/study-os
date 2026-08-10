@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FilePlus2, FolderOpen, UploadCloud, X } from 'lucide-react';
 import { useAssetsStore } from '../../store/assetsStore';
 import { inferAssetType } from '../../services/assetType';
+import { connectGoogleDrive } from '../../services/driveAuth';
 
 interface FileEntry {
   isFile: boolean;
@@ -49,6 +50,8 @@ function readEntry(entry: FileEntry, parentPath = ''): Promise<File[]> {
 export function AssetUploader({ topicId }: { topicId?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [driveMessage, setDriveMessage] = useState<string | null>(null);
   const startUpload = useAssetsStore((state) => state.startUpload);
   const uploadTasks = useAssetsStore((state) => state.uploadTasks);
   const uploadProgress = useAssetsStore((state) => state.uploadProgress);
@@ -65,6 +68,19 @@ export function AssetUploader({ topicId }: { topicId?: string }) {
     if (!topicId) return;
     const supported = files.filter((file) => inferAssetType(file));
     if (supported.length) await startUpload(supported, topicId);
+  }
+
+  async function connectDrive() {
+    setConnecting(true);
+    setDriveMessage(null);
+    try {
+      await connectGoogleDrive();
+      setDriveMessage('Google Drive connected. Choose a folder to upload.');
+    } catch (reason: unknown) {
+      setDriveMessage(reason instanceof Error ? reason.message : 'Unable to connect Google Drive.');
+    } finally {
+      setConnecting(false);
+    }
   }
 
   async function handleDrop(event: React.DragEvent) {
@@ -123,9 +139,22 @@ export function AssetUploader({ topicId }: { topicId?: string }) {
           <FolderOpen size={12} />
           Choose folder
         </button>
+        {topicId && (
+          <button
+            type="button"
+            disabled={connecting || active}
+            onClick={() => void connectDrive()}
+            className="ml-2 mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 disabled:opacity-40"
+          >
+            {connecting ? 'Connecting…' : 'Connect Google Drive'}
+          </button>
+        )}
       </div>
       {!topicId && (
         <p className="mt-1 text-center text-[10px] text-slate-400">Select a topic first.</p>
+      )}
+      {driveMessage && (
+        <p className="mt-1 text-center text-[10px] text-amber-600">{driveMessage}</p>
       )}
       {uploadTasks.length > 0 && (
         <div className="mt-2 space-y-1">

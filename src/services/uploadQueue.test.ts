@@ -85,4 +85,40 @@ describe('upload queue', () => {
     expect(queue.tasks.map((task) => task.status)).toEqual(['uploaded', 'failed']);
     expect(queue.tasks[0].asset?.title).toBe('good');
   });
+
+  it('does not retry unknown permanent errors', async () => {
+    const sleep = vi.fn(async () => undefined);
+    let attempts = 0;
+    const uploadOne: UploadOne = async () => {
+      attempts += 1;
+      throw new Error('permanent failure');
+    };
+    const queue = createUploadQueue([{ file: file('permanent'), topicId: 'topic' }], uploadOne, {
+      maxRetries: 3,
+      sleep,
+    });
+
+    await queue.start();
+
+    expect(attempts).toBe(1);
+    expect(sleep).not.toHaveBeenCalled();
+    expect(queue.tasks[0].status).toBe('failed');
+  });
+
+  it('reports successful assets as soon as each upload completes', async () => {
+    const completed: string[] = [];
+    const uploadOne: UploadOne = async (item, topicId) => {
+      await Promise.resolve();
+      return assetFor(item, topicId);
+    };
+    const queue = createUploadQueue([{ file: file('progressive'), topicId: 'topic' }], uploadOne, {
+      onSuccess: (_task, asset) => {
+        completed.push(asset.title);
+      },
+    });
+
+    await queue.start();
+
+    expect(completed).toEqual(['progressive']);
+  });
 });

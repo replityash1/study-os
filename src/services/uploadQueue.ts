@@ -15,6 +15,7 @@ export interface UploadQueueOptions {
   retryDelayMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
   onUpdate?: (tasks: UploadTask[], progress: UploadProgress) => void;
+  onSuccess?: (task: UploadTask, asset: Asset) => void | Promise<void>;
 }
 
 export interface UploadQueue {
@@ -32,7 +33,9 @@ function isTransient(error: unknown) {
     const status = Number(error.status);
     return status === 429 || status >= 500;
   }
-  return true;
+  if (error instanceof TypeError) return true;
+  if (error instanceof Error && error.name === 'NetworkError') return true;
+  return false;
 }
 
 function defaultSleep(milliseconds: number) {
@@ -58,9 +61,8 @@ export function createUploadQueue(
     asset: null,
   }));
   const controllers = new Map<string, AbortController>();
-  let running = 0;
-  let cancelled = false;
-  let pumpPromise: Promise<void> | null = null;
+  const cancelledTaskIds = new Set<string>();
+  let runPromise: Promise<void> | null = null;
 
   function progressSnapshot(): UploadProgress {
     return {
@@ -79,7 +81,6 @@ export function createUploadQueue(
   }
 
   async function process(task: UploadTask) {
-    running += 1;
     task.status = 'uploading';
     task.error = null;
     notify();
@@ -88,15 +89,32 @@ export function createUploadQueue(
 
     try {
       for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-        if (cancelled) throw new DOMException('Upload cancelled', 'AbortError');
+        if (cancelledTaskIds.has(task.id)) {
+          throw new DOMException('Upload cancelled', 'AbortError');
+        }
         try {
-          task.asset = await uploadOne(task.file, task.topicId, controller.signal, (uploaded) => {
-            task.progress = task.file.size ? Math.min(1, uploaded / task.file.size) : 1;
-            notify();
-          });
+          const uploadedAsset = await uploadOne(
+            task.file,
+            task.topicId,
+            controller.signal,
+            (uploaded) => {
+              task.progress = task.file.size ? Math.min(1, uploaded / task.file.size) : 1;
+              notify();
+            },
+          );
+          if (cancelledTaskIds.has(task.id)) {
+            throw new DOMException('Upload cancelled', 'AbortError');
+          }
+          task.asset = uploadedAsset;
           task.progress = 1;
           task.status = 'uploaded';
           notify();
+          try {
+            await options.onSuccess?.(task, task.asset);
+          } catch (saveError) {
+            task.error = saveError instanceof Error ? saveError.message : 'Asset save failed';
+            notify();
+          }
           return;
         } catch (error) {
           if (attempt >= maxRetries || !isTransient(error)) throw error;
@@ -104,52 +122,51 @@ export function createUploadQueue(
         }
       }
     } catch (error) {
-      task.status = cancelled ? 'cancelled' : 'failed';
+      task.status = cancelledTaskIds.has(task.id) ? 'cancelled' : 'failed';
       task.error = error instanceof Error ? error.message : 'Upload failed';
       notify();
     } finally {
       controllers.delete(task.id);
-      running -= 1;
     }
   }
 
-  async function pump() {
-    while (!cancelled) {
+  async function worker() {
+    while (true) {
       const next = tasks.find((task) => task.status === 'queued');
       if (!next) return;
-      if (running >= concurrency) {
-        await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
-        continue;
-      }
-      void process(next);
+      await process(next);
     }
   }
 
   async function start() {
-    if (pumpPromise) return pumpPromise;
-    pumpPromise = (async () => {
+    if (runPromise) return runPromise;
+    runPromise = (async () => {
       notify();
-      await pump();
-      while (running > 0) {
-        await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
-      }
+      await Promise.all(Array.from({ length: concurrency }, () => worker()));
     })();
-    await pumpPromise;
+    try {
+      await runPromise;
+    } finally {
+      runPromise = null;
+    }
   }
 
   async function retry(taskId: string) {
     const task = tasks.find((item) => item.id === taskId);
     if (!task || task.status !== 'failed') return;
-    cancelled = false;
+    cancelledTaskIds.delete(taskId);
     task.status = 'queued';
     task.progress = 0;
     task.error = null;
-    pumpPromise = null;
     await start();
   }
 
   function cancel() {
-    cancelled = true;
+    for (const task of tasks) {
+      if (task.status === 'queued' || task.status === 'uploading') {
+        cancelledTaskIds.add(task.id);
+      }
+    }
     for (const controller of controllers.values()) controller.abort();
     for (const task of tasks) {
       if (task.status === 'queued') task.status = 'cancelled';

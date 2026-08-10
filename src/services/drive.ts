@@ -1,6 +1,11 @@
 import type { Asset } from '../types';
+import { auth } from '../config/firebase';
+import { uploadDriveFile } from './driveApi';
+import { firestoreAssetsAdapter } from './firestoreAssetsAdapter';
 
 export class DriveNotConnectedError extends Error {
+  readonly transient = false;
+
   constructor() {
     super('Connect Google Drive to upload assets.');
     this.name = 'DriveNotConnectedError';
@@ -8,11 +13,20 @@ export class DriveNotConnectedError extends Error {
 }
 
 export async function listDriveAssets(topicId: string): Promise<Asset[]> {
-  void topicId;
-  throw new Error('not implemented');
+  if (!auth.currentUser) throw new DriveNotConnectedError();
+  return firestoreAssetsAdapter(auth.currentUser.uid).list(topicId);
 }
 export async function uploadDriveAsset(topicId: string, file: File): Promise<Asset> {
-  void topicId;
-  void file;
-  throw new DriveNotConnectedError();
+  if (!auth.currentUser) throw new DriveNotConnectedError();
+  return uploadDriveFile(topicId, file, new AbortController().signal, () => undefined);
+}
+
+export async function uploadDriveAssetWithProgress(
+  topicId: string,
+  file: File,
+  signal: AbortSignal,
+  onProgress: (bytesUploaded: number) => void,
+) {
+  if (!auth.currentUser) throw new DriveNotConnectedError();
+  return uploadDriveFile(topicId, file, signal, onProgress);
 }
