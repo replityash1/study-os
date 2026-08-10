@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify';
 import {
   Bold,
   Code,
@@ -16,9 +15,12 @@ import {
   Undo2,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../auth/useAuth';
+import { useCloudStore } from '../../store/cloudStore';
 import { useNotesStore } from '../../store/notesStore';
 import { firestoreNotesAdapter } from '../../services/firestoreNotesAdapter';
 import { localNotesAdapter } from '../../services/notesAdapter';
@@ -42,8 +44,9 @@ const tools: Tool[] = [
 
 export function NotesEditor({ topicId }: { topicId: string }) {
   const { user } = useAuth();
-  const cachedNote = useNotesStore((state) => state.notes[topicId]);
   const setNote = useNotesStore((state) => state.setNote);
+  const setOffline = useCloudStore((state) => state.setOffline);
+  const setError = useCloudStore((state) => state.setError);
   const [content, setContent] = useState('');
   const [preview, setPreview] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -80,6 +83,10 @@ export function NotesEditor({ topicId }: { topicId: string }) {
       if (id === topicRef.current) setModified(note.updatedAt);
     } catch (error) {
       console.warn('Note save unavailable; keeping the draft locally.', error);
+      if (user) {
+        setOffline(true);
+        setError('Note sync unavailable — draft saved locally');
+      }
     }
   }
 
@@ -116,7 +123,14 @@ export function NotesEditor({ topicId }: { topicId: string }) {
     let cancelled = false;
     async function load() {
       const adapter = user ? firestoreNotesAdapter(user.uid) : localNotesAdapter;
-      const note = cachedNote ?? (await adapter.load(topicId));
+      let note = await adapter.load(topicId);
+      if (user) {
+        const localNote = await localNotesAdapter.load(topicId);
+        if (localNote && (!note || localNote.updatedAt > note.updatedAt)) {
+          await adapter.save(localNote);
+          note = localNote;
+        }
+      }
       if (cancelled) return;
       const saved = note?.content ?? '';
       const draft = recoverDraft(topicId, saved);
@@ -129,6 +143,12 @@ export function NotesEditor({ topicId }: { topicId: string }) {
       cancelled = true;
     };
   }, [topicId, user]);
+
+  const sanitizeSchema = {
+    ...defaultSchema,
+    tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
+    attributes: { ...defaultSchema.attributes, u: [] },
+  };
 
   return (
     <Card className="min-h-[360px] border border-slate-100 p-4 md:col-span-2">
@@ -192,9 +212,12 @@ export function NotesEditor({ topicId }: { topicId: string }) {
         </p>
       )}
       {preview ? (
-        <article className="prose prose-sm mt-4 min-h-[180px] max-w-none text-slate-600">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {DOMPurify.sanitize(content, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })}
+        <article className="markdown-preview mt-4 min-h-[180px] max-w-none text-sm leading-6 text-slate-600">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+          >
+            {content}
           </ReactMarkdown>
         </article>
       ) : (

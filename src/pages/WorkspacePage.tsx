@@ -61,7 +61,7 @@ export function WorkspacePage() {
         </div>
         <div className="hidden items-center gap-3 rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-soft sm:flex">
           <Sparkles size={16} className="text-primary" />
-          {user && !cloudOffline ? 'Sync enabled' : 'offline — saving locally'}
+          {!user ? 'Local mode' : cloudOffline ? 'Offline — saving locally' : 'Sync enabled'}
         </div>
       </header>
 
