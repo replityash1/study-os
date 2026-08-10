@@ -24,7 +24,7 @@ export function WorkspacePanels({ topicId }: { topicId?: string }) {
       <MediaViewer title={title || undefined} />
       <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)] gap-4 max-xl:grid-cols-1">
         <NotesEditor topicId={topicId} />
-        <AssetsPanel icon={<FileStack size={17} />} />
+        <AssetsPanel icon={<FileStack size={17} />} topicId={topicId} />
       </div>
     </div>
   );

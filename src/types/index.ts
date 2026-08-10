@@ -31,8 +31,36 @@ export interface Note {
 export interface Asset {
   assetId: string;
   topicId: string;
-  type: string;
+  type: AssetType;
   title: string;
   driveFileId: string;
   createdAt: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  relativePath?: string;
+  modifiedAt?: string;
+  durationSeconds?: number;
+  pageCount?: number;
+  thumbnailUrl?: string;
+}
+
+export type AssetType = 'video' | 'pdf' | 'audio' | 'image';
+
+export type UploadTaskStatus = 'queued' | 'uploading' | 'uploaded' | 'failed' | 'cancelled';
+
+export interface UploadTask {
+  id: string;
+  file: File;
+  topicId: string;
+  status: UploadTaskStatus;
+  progress: number;
+  error: string | null;
+  asset: Asset | null;
+}
+
+export interface UploadProgress {
+  completed: number;
+  total: number;
+  bytesUploaded: number;
+  bytesTotal: number;
 }

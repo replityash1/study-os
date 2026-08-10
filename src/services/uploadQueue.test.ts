@@ -1,0 +1,88 @@
+import { describe, expect, it, vi } from 'vitest';
+import { createUploadQueue, type UploadOne } from './uploadQueue';
+import type { Asset } from '../types';
+
+function assetFor(file: File, topicId: string): Asset {
+  return {
+    assetId: `${topicId}-${file.name}`,
+    topicId,
+    type: 'image',
+    title: file.name,
+    driveFileId: '',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function file(name: string, size = 10) {
+  return new File([new Uint8Array(size)], name, { type: 'image/png', lastModified: 1 });
+}
+
+describe('upload queue', () => {
+  it('never exceeds the configured concurrency', async () => {
+    let active = 0;
+    let maximum = 0;
+    const uploadOne: UploadOne = async (item, topicId) => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await Promise.resolve();
+      active -= 1;
+      return assetFor(item, topicId);
+    };
+    const queue = createUploadQueue(
+      [file('a'), file('b'), file('c'), file('d')].map((item) => ({
+        file: item,
+        topicId: 'topic',
+      })),
+      uploadOne,
+      { concurrency: 2 },
+    );
+
+    await queue.start();
+
+    expect(maximum).toBeLessThanOrEqual(2);
+    expect(queue.tasks.every((task) => task.status === 'uploaded')).toBe(true);
+  });
+
+  it('retries transient failures with backoff', async () => {
+    const sleep = vi.fn(async () => undefined);
+    let attempts = 0;
+    const uploadOne: UploadOne = async (item, topicId) => {
+      attempts += 1;
+      if (attempts === 1) throw Object.assign(new Error('rate limited'), { status: 429 });
+      return assetFor(item, topicId);
+    };
+    const queue = createUploadQueue([{ file: file('retry'), topicId: 'topic' }], uploadOne, {
+      maxRetries: 2,
+      retryDelayMs: 10,
+      sleep,
+    });
+
+    await queue.start();
+
+    expect(attempts).toBe(2);
+    expect(sleep).toHaveBeenCalledWith(10);
+    expect(queue.tasks[0].status).toBe('uploaded');
+  });
+
+  it('preserves successful files when another file fails', async () => {
+    const uploadOne: UploadOne = async (item, topicId) => {
+      if (item.name === 'bad') {
+        throw Object.assign(new Error('invalid file'), { transient: false });
+      }
+      return assetFor(item, topicId);
+    };
+    const queue = createUploadQueue(
+      [
+        { file: file('good'), topicId: 'topic' },
+        { file: file('bad'), topicId: 'topic' },
+      ],
+      uploadOne,
+      { maxRetries: 2 },
+    );
+
+    await queue.start();
+
+    expect(queue.tasks.map((task) => task.status)).toEqual(['uploaded', 'failed']);
+    expect(queue.tasks[0].asset?.title).toBe('good');
+  });
+});

@@ -1,10 +1,63 @@
-import { useState } from 'react';
-import { FileStack, Filter } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { FileAudio, FileImage, FileStack, FileText, Filter, Film } from 'lucide-react';
+import { useAuth } from '../../auth/useAuth';
+import { localAssetsAdapter } from '../../services/assetsAdapter';
+import { firestoreAssetsAdapter } from '../../services/firestoreAssetsAdapter';
+import type { Asset, AssetType } from '../../types';
+import { useAssetsStore } from '../../store/assetsStore';
 import { Card, IconButton } from '../ui';
+import { AssetUploader } from './AssetUploader';
 
-export function AssetsPanel({ icon }: { icon?: React.ReactNode }) {
-  const [filter, setFilter] = useState('All');
-  const filters = ['All', 'Videos', 'PDFs', 'Audio'];
+const filters = [
+  { label: 'All', value: 'All' as const },
+  { label: 'Videos', value: 'video' as const },
+  { label: 'PDFs', value: 'pdf' as const },
+  { label: 'Audio', value: 'audio' as const },
+];
+
+function iconForAsset(asset: Asset) {
+  if (asset.thumbnailUrl) {
+    return <img src={asset.thumbnailUrl} alt="" className="h-full w-full object-cover" />;
+  }
+  const icons: Record<AssetType, React.ReactNode> = {
+    video: <Film size={18} />,
+    pdf: <FileText size={18} />,
+    audio: <FileAudio size={18} />,
+    image: <FileImage size={18} />,
+  };
+  return icons[asset.type];
+}
+
+function metadataForAsset(asset: Asset) {
+  if (asset.type === 'video' || asset.type === 'audio') {
+    const duration = asset.durationSeconds
+      ? `${Math.floor(asset.durationSeconds / 60)}:${String(Math.floor(asset.durationSeconds % 60)).padStart(2, '0')}`
+      : null;
+    return `${asset.type[0].toUpperCase()}${asset.type.slice(1)}${duration ? ` • ${duration}` : ''}`;
+  }
+  if (asset.type === 'pdf') return `PDF${asset.pageCount ? ` • ${asset.pageCount} Pages` : ''}`;
+  return 'Image';
+}
+
+export function AssetsPanel({ icon, topicId }: { icon?: React.ReactNode; topicId?: string }) {
+  const { user } = useAuth();
+  const filter = useAssetsStore((state) => state.filter);
+  const setFilter = useAssetsStore((state) => state.setFilter);
+  const assets = useAssetsStore((state) => state.assets);
+  const selectAsset = useAssetsStore((state) => state.selectAsset);
+  const setAdapter = useAssetsStore((state) => state.setAdapter);
+  const hydrate = useAssetsStore((state) => state.hydrate);
+
+  useEffect(() => {
+    const adapter = user ? firestoreAssetsAdapter(user.uid) : localAssetsAdapter;
+    setAdapter(adapter);
+    if (topicId) void hydrate(topicId);
+  }, [hydrate, setAdapter, topicId, user]);
+
+  const visibleAssets = useMemo(
+    () => assets.filter((asset) => filter === 'All' || asset.type === filter),
+    [assets, filter],
+  );
 
   return (
     <Card className="flex min-h-[270px] min-w-0 flex-col p-4">
@@ -22,25 +75,58 @@ export function AssetsPanel({ icon }: { icon?: React.ReactNode }) {
       <div className="mt-4 flex gap-1 rounded-xl bg-slate-50 p-1 text-[10px] font-semibold text-slate-400">
         {filters.map((item) => (
           <button
-            key={item}
+            key={item.label}
             type="button"
-            aria-pressed={filter === item}
-            onClick={() => setFilter(item)}
+            aria-pressed={filter === item.value}
+            onClick={() => setFilter(item.value)}
             className={`rounded-lg px-3 py-1.5 transition ${
-              filter === item ? 'bg-primary text-white' : 'hover:bg-white hover:text-slate-600'
+              filter === item.value
+                ? 'bg-primary text-white'
+                : 'hover:bg-white hover:text-slate-600'
             }`}
           >
-            {item}
+            {item.label}
           </button>
         ))}
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <FileStack size={26} className="text-slate-200" />
-        <p className="mt-2 text-sm font-semibold text-slate-500">No assets yet</p>
-        <p className="mt-1 text-xs text-slate-400">
-          Your saved videos, PDFs, and audio will appear here.
-        </p>
-      </div>
+      {visibleAssets.length > 0 ? (
+        <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+          {visibleAssets.map((asset) => (
+            <button
+              key={asset.assetId}
+              type="button"
+              onClick={() => selectAsset(asset)}
+              className="flex w-full items-center gap-2 rounded-xl p-1 text-left transition hover:bg-violet-50"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-violet-50 text-primary">
+                {iconForAsset(asset)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-semibold text-slate-600">
+                  {asset.title}
+                </span>
+                <span className="block text-[9px] text-slate-400">{metadataForAsset(asset)}</span>
+              </span>
+              <span className="text-[9px] text-slate-400">
+                {new Date(asset.createdAt).toLocaleDateString()}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center text-center">
+          <FileStack size={26} className="text-slate-200" />
+          <p className="mt-2 text-sm font-semibold text-slate-500">
+            {topicId ? 'No assets yet' : 'Select a topic'}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            {topicId
+              ? 'Your saved videos, PDFs, and audio will appear here.'
+              : 'Choose a syllabus topic to manage its assets.'}
+          </p>
+        </div>
+      )}
+      <AssetUploader topicId={topicId} />
     </Card>
   );
 }
