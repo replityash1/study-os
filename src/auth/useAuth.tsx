@@ -41,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       localOnly,
       signIn: async () => {
+        setLocalOnly(false);
+        localStorage.removeItem(LOCAL_MODE_KEY);
         await signInWithPopup(auth, googleProvider);
       },
       signOut: async () => {

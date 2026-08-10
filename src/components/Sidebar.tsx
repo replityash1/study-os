@@ -5,11 +5,13 @@ import {
   CalendarDays,
   GraduationCap,
   House,
+  LogIn,
   LogOut,
   Settings,
   MessageCircle,
   Target,
 } from 'lucide-react';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 
@@ -25,8 +27,21 @@ const items = [
 ];
 
 export function Sidebar() {
-  const { user, signOut } = useAuth();
+  const { user, signIn, signOut } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [authError, setAuthError] = useState('');
   const initials = user?.displayName?.slice(0, 1).toUpperCase() || 'S';
+
+  async function handleSignIn() {
+    setAuthError('');
+    setAccountOpen(false);
+    try {
+      await signIn();
+    } catch {
+      setAuthError('Sign-in was cancelled or unavailable.');
+      setAccountOpen(true);
+    }
+  }
 
   return (
     <aside className="fixed bottom-4 left-4 top-4 z-20 flex w-[82px] flex-col items-center rounded-[28px] bg-white py-5 shadow-soft max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:top-auto max-md:h-[72px] max-md:w-auto max-md:flex-row max-md:justify-around max-md:rounded-none max-md:py-2">
@@ -67,8 +82,9 @@ export function Sidebar() {
       </nav>
       <div className="group relative max-md:hidden">
         <button
-          aria-label={user ? `Sign out ${user.displayName ?? 'user'}` : 'Local-only mode'}
-          onClick={() => user && void signOut()}
+          aria-expanded={accountOpen}
+          aria-label={user ? `Account for ${user.displayName ?? 'user'}` : 'Sign in'}
+          onClick={() => setAccountOpen((open) => !open)}
           className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-violet-300 to-primary text-sm font-bold text-white shadow-soft"
         >
           {user?.photoURL ? (
@@ -76,13 +92,38 @@ export function Sidebar() {
           ) : (
             initials
           )}
-          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-400" />
+          <span
+            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
+              user ? 'bg-emerald-400' : 'bg-slate-300'
+            }`}
+          />
         </button>
-        {user && (
-          <span className="pointer-events-none absolute bottom-0 left-14 hidden whitespace-nowrap rounded-lg bg-slate-800 px-2 py-1 text-xs text-white group-hover:block">
-            <LogOut size={12} className="mr-1 inline" />
-            Sign out
-          </span>
+        {accountOpen && (
+          <div className="absolute bottom-0 left-14 min-w-36 rounded-xl bg-white p-2 shadow-soft">
+            {user ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountOpen(false);
+                  void signOut();
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-violet-50"
+              >
+                <LogOut size={14} />
+                Sign out
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void handleSignIn()}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-violet-50"
+              >
+                <LogIn size={14} />
+                Sign in with Google
+              </button>
+            )}
+            {authError && <p className="px-2 pb-1 text-[10px] text-amber-600">{authError}</p>}
+          </div>
         )}
       </div>
     </aside>
