@@ -40,8 +40,8 @@ export class DriveAuthError extends Error {
 
 let accessToken: string | null = null;
 let expiresAt = 0;
-let tokenClient: TokenClient | null = null;
 let scriptPromise: Promise<void> | null = null;
+let tokenRequestPromise: Promise<string> | null = null;
 
 function clientId() {
   return import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID as string | undefined;
@@ -67,18 +67,18 @@ function loadGoogleIdentityServices() {
 }
 
 async function requestToken(prompt: string) {
+  if (tokenRequestPromise) return tokenRequestPromise;
   const configuredClientId = clientId();
   if (!configuredClientId) {
     throw new DriveAuthError('Configure VITE_GOOGLE_OAUTH_CLIENT_ID to connect Google Drive.');
   }
-  await loadGoogleIdentityServices();
-  const google = window.google;
-  if (!google) throw new DriveAuthError('Google Drive authorization could not load.');
+  const requestPromise = (async () => {
+    await loadGoogleIdentityServices();
+    const google = window.google;
+    if (!google) throw new DriveAuthError('Google Drive authorization could not load.');
 
-  return new Promise<string>((resolve, reject) => {
-    tokenClient =
-      tokenClient ??
-      google.accounts.oauth2.initTokenClient({
+    return new Promise<string>((resolve, reject) => {
+      const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: configuredClientId,
         scope: DRIVE_SCOPE,
         callback: (response) => {
@@ -100,8 +100,15 @@ async function requestToken(prompt: string) {
           reject(new DriveAuthError(error.message ?? 'Google Drive consent was not granted.'));
         },
       });
-    tokenClient.requestAccessToken({ prompt });
-  });
+      tokenClient.requestAccessToken({ prompt });
+    });
+  })();
+  tokenRequestPromise = requestPromise;
+  try {
+    return await requestPromise;
+  } finally {
+    if (tokenRequestPromise === requestPromise) tokenRequestPromise = null;
+  }
 }
 
 export async function connectGoogleDrive() {
@@ -110,6 +117,13 @@ export async function connectGoogleDrive() {
 
 export async function getDriveAccessToken() {
   if (accessToken && Date.now() < expiresAt - TOKEN_SKEW_MS) return accessToken;
+  if (accessToken) {
+    try {
+      return await requestToken('');
+    } catch {
+      clearDriveAccessToken();
+    }
+  }
   accessToken = null;
   expiresAt = 0;
   throw new DriveAuthError('Connect Google Drive to continue.');

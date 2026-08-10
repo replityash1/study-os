@@ -31,7 +31,7 @@ function isTransient(error: unknown) {
   }
   if (typeof error === 'object' && error !== null && 'status' in error) {
     const status = Number(error.status);
-    return status === 429 || status >= 500;
+    return status === 401 || status === 429 || status >= 500;
   }
   if (error instanceof TypeError) return true;
   if (error instanceof Error && error.name === 'NetworkError') return true;

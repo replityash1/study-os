@@ -34,7 +34,7 @@ export class DriveApiError extends Error implements DriveErrorShape {
     super(message);
     this.name = 'DriveApiError';
     this.status = status;
-    this.transient = status === 429 || status >= 500;
+    this.transient = status === 401 || status === 429 || status >= 500;
   }
 }
 
@@ -54,7 +54,7 @@ async function driveJson<T>(path: string, init: RequestInit = {}) {
   });
   if (response.status === 401) {
     clearDriveAccessToken();
-    throw new DriveAuthError('Google Drive authorization expired. Connect Google Drive again.');
+    throw new DriveApiError('Google Drive authorization expired.', 401);
   }
   if (!response.ok) {
     throw new DriveApiError(`Google Drive request failed (${response.status}).`, response.status);
@@ -154,6 +154,7 @@ function uploadResumable(
           reject(new DriveApiError('Google Drive returned invalid upload metadata.', xhr.status));
         }
       } else {
+        if (xhr.status === 401) clearDriveAccessToken();
         reject(new DriveApiError(`Google Drive upload failed (${xhr.status}).`, xhr.status));
       }
     };
@@ -190,7 +191,7 @@ async function startResumableUpload(
     });
     if (response.status === 401) {
       clearDriveAccessToken();
-      throw new DriveAuthError('Google Drive authorization expired. Connect Google Drive again.');
+      throw new DriveApiError('Google Drive authorization expired.', 401);
     }
     if (!response.ok)
       throw new DriveApiError(`Google Drive upload failed (${response.status}).`, response.status);

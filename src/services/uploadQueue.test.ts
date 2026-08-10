@@ -64,6 +64,27 @@ describe('upload queue', () => {
     expect(queue.tasks[0].status).toBe('uploaded');
   });
 
+  it('retries an authorization interruption instead of permanently failing', async () => {
+    const sleep = vi.fn(async () => undefined);
+    let attempts = 0;
+    const uploadOne: UploadOne = async (item, topicId) => {
+      attempts += 1;
+      if (attempts === 1) throw Object.assign(new Error('token expired'), { status: 401 });
+      return assetFor(item, topicId);
+    };
+    const queue = createUploadQueue([{ file: file('auth-retry'), topicId: 'topic' }], uploadOne, {
+      maxRetries: 1,
+      retryDelayMs: 10,
+      sleep,
+    });
+
+    await queue.start();
+
+    expect(attempts).toBe(2);
+    expect(sleep).toHaveBeenCalledWith(10);
+    expect(queue.tasks[0].status).toBe('uploaded');
+  });
+
   it('preserves successful files when another file fails', async () => {
     const uploadOne: UploadOne = async (item, topicId) => {
       if (item.name === 'bad') {
